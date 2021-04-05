@@ -17,7 +17,7 @@ from sklearn.gaussian_process.kernels import WhiteKernel, RBF, ConstantKernel
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler
-import shap
+# import shap
 
 colors = ['#4ecdc4', '#dce2dc', '#ff6b6b', '#1a535c', '#ffe66d']
 # modifier to add to 0 in logplot
@@ -161,17 +161,22 @@ def plot_one_contour(ax, df, target, logplot, features, model_type, n_countours=
     x0_name = features[0]
     x1_name = features[1]
 
-    X = np.array(df.loc[:, features])
-    y = np.array(df.loc[:, [target]])
+    X_raw = np.array(df.loc[:, features])
+    y_raw = np.array(df.loc[:, [target]])
+
+    condition = np.logical_or(y_raw == 0, y_raw == 470)
+    removed = np.where(condition)
+    y = np.delete(y_raw, removed)
+    X = np.delete(X_raw, removed, axis=0)
 
     # fit model
     feat_scaler = StandardScaler()
     targ_scaler = StandardScaler()
     feat_scaler.fit(X)
-    targ_scaler.fit(y)
+    targ_scaler.fit(y.reshape(-1,1))
 
     X_scaled = feat_scaler.transform(X)
-    y_scaled = targ_scaler.transform(y).ravel()
+    y_scaled = targ_scaler.transform(y.reshape(-1,1)).ravel()
 
     if model_type == 'rf':
         model = ExtraTreesRegressor(n_estimators=500)
@@ -301,8 +306,13 @@ def plot_contours(df, targets, features, model_type, n_countours=5, logplot=Fals
 
 
 def plot_1d_fit(ax, df, target, logplot, feature, model_type, color):
-    X = np.array(df.loc[:, [feature]])
-    y = np.array(df.loc[:, [target]])
+    X_raw = np.array(df.loc[:, [feature]])
+    y_raw = np.array(df.loc[:, [target]])
+
+    condition = np.logical_or(y_raw == 0, y_raw == 470)
+    removed = np.where(condition)
+    y = np.delete(y_raw, removed, axis=0)
+    X = np.delete(X_raw, removed, axis=0)
 
     # fit model
     feat_scaler = StandardScaler()
@@ -329,8 +339,8 @@ def plot_1d_fit(ax, df, target, logplot, feature, model_type, color):
     x0_lims = [np.min(X), np.max(X)]
 
     #manual limits
-    x_lims = [2.2, 12]
-    y_lims = [90., 180.]
+    # x_lims = [2.2, 12]
+    # y_lims = [90., 180.]
 
     # data
     N = 1000
@@ -342,6 +352,7 @@ def plot_1d_fit(ax, df, target, logplot, feature, model_type, color):
     if model_type == 'gp':
         y_pred_scaled, y_std_scaled = model.predict(X=df_predict_scaled, return_std=True)
         y_std = targ_scaler.inverse_transform(y_std_scaled)
+        # print(y_std)
     else:
         y_pred_scaled = model.predict(X=df_predict_scaled)
 
@@ -357,28 +368,29 @@ def plot_1d_fit(ax, df, target, logplot, feature, model_type, color):
             if 0.0 in upperbound:
                 upperbound = upperbound + LOG_MODIFIER
             upperbound = np.log10(upperbound)
-        ax.fill_between(x=x0, y1=lowerbound, y2=upperbound, color=color, alpha=0.3, label='uncertainty')
+        # ax.fill_between(x=x0, y1=lowerbound, y2=upperbound, color=color, alpha=0.3, label='uncertainty')
 
     if logplot is True:
         if 0.0 in y_pred:
             y_pred = y_pred + LOG_MODIFIER
         y_pred = np.log10(y_pred)
 
+
     # plot
+    ax.scatter(X, y, s=100, marker='X', color=colors[4], edgecolor='k', label='samples', linewidth=1, zorder=0)
     ax.plot(x0, y_pred, linewidth=5, color='k')
     ax.plot(x0, y_pred, linewidth=4, color=color, label=f'{model_type} estimate')
     ax.grid(linestyle=':')
 
     # scatter plot
-    obs_x = np.array(df.loc[:, [feature]])
-    obs_y = np.array(df.loc[:, [target]])
+    # obs_x = np.array(df.loc[:, [feature]])
+    # obs_y = np.array(df.loc[:, [target]])
+    # ax.scatter(obs_x, obs_y, s=100, marker='X', color=colors[4], edgecolor='k', label='samples', linewidth=1, zorder=10)
 
     if logplot is True:
         if 0.0 in obs_y:
             obs_y = obs_y + LOG_MODIFIER
         obs_y = np.log10(obs_y)
-
-    ax.scatter(obs_x, obs_y, s=100, marker='X', color=colors[4], edgecolor='k', label='samples', linewidth=1, zorder=10)
 
     # labels and lims
     ax.set_xlabel(feature)
@@ -566,6 +578,9 @@ def main(args):
         df = pd.read_excel(args.file)
     else:
         raise ValueError(f'cannot recognise file format of input {args.file}')
+
+
+
 
     # plot traces
     # plot_trace(df=df.loc[:, args.targets], goals=args.goals, logplot=args.logplot, absolutes=args.absolutes)

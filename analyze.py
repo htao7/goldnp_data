@@ -15,27 +15,29 @@ from sklearn.model_selection import KFold
 def shap_analysis(X, y, features, target):
     kf = KFold(n_splits=10, shuffle=True)
 
-    rf = ExtraTreesRegressor(n_estimators=500)
-    print (target, cross_val_score(rf, X, y, cv=kf, scoring='r2').mean())
-    # rf.fit(X, y)
-    # explainer = shap.KernelExplainer(rf.predict, X)
-    # shap_values = explainer.shap_values(X)
-    # shap.summary_plot(shap_values, features=X, feature_names=features, title=target)
+    # model = ExtraTreesRegressor(n_estimators=500)
 
     # kernel = ConstantKernel() * RBF() + WhiteKernel()
-    # gp = GaussianProcessRegressor(kernel=kernel)
-    # print (target, cross_val_score(gp, X, y, cv=kf, scoring='r2').mean())
-    # gp.fit(X[train], y[train])
-    # explainer = shap.KernelExplainer(gp.predict, X)
+    # model = GaussianProcessRegressor(kernel=kernel)
+
+    model = SVR()
+
+    print (target, cross_val_score(model, X, y, cv=kf, scoring='r2').mean())
+
+
+    clf = model.fit(X, y)
+    print(target, 'non-CV', clf.score(X, y))
+    y_pred = model.predict(X=X)
+    # print (y_pred - y)
+    # plt.scatter(np.arange(len(y)), y_pred - y)
+    # plt.title(target)
+    # plt.xlabel('exp #')
+    # plt.ylabel('residual')
+    # plt.show()
+    # explainer = shap.KernelExplainer(model.predict, X)
     # shap_values = explainer.shap_values(X)
     # shap.summary_plot(shap_values, features=X, feature_names=features, title=target)
 
-    # svr = SVR()
-    # print (target, cross_val_score(svr, X, y, cv=kf, scoring='r2').mean())
-    # svr.fit(X, y)
-    # explainer = shap.KernelExplainer(svr.predict, X)
-    # shap_values = explainer.shap_values(X)
-    # shap.summary_plot(shap_values, features=X, feature_names=features, title=target)
 
 
 
@@ -45,12 +47,20 @@ targets = ['A450', 'R', 'FWHM', 'WL']
 
 scaler = StandardScaler()
 X_raw = np.array(df.loc[:, features])
+# X_explor = [X_raw[2 * i + 1] for i in range(int(len(X_raw) / 2))]
 for target in targets:
     y_raw = np.array(df.loc[:, [target]])
+    # y_explor = [y_raw[2 * i + 1] for i in range(int(len(y_raw) / 2))]
+    # condition = np.logical_or(y_explor == 0, y_explor == 470)
+    # removed = np.where(condition)
+    # y = np.delete(y_explor, removed)
+    # X = np.delete(X_explor, removed, axis=0)
+
     condition = np.logical_or(y_raw == 0, y_raw == 470)
     removed = np.where(condition)
     y = np.delete(y_raw, removed)
     X = np.delete(X_raw, removed, axis=0)
+
     scaler.fit(X)
     X_scaled = scaler.transform(X)
     scaler.fit(y.reshape(-1,1))
